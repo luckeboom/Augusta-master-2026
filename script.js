@@ -13,15 +13,16 @@ let adminResultCount = 0;
 let userGuesses = {
     top3: [],
     surprise: null,
-    flop: null
+    flop: null,
+    lowestRound: null
 };
 
 /* ADMIN – SLUTRESULTAT */
-let resultTop10 = []; // index 0 = 1:a, index 9 = 10:e
+let resultTop10 = [];
+let lowestRoundWinner = null;
 
 /* ======================================================
-   VÄRLDSRANKING (DAGENS – FAST DATA)
-   Alla som inte finns här ⇒ rank > 10
+   VÄRLDSRANKING (FAST DATA)
 ====================================================== */
 
 const worldRanking = {
@@ -38,7 +39,7 @@ const worldRanking = {
 };
 
 /* ======================================================
-   START – LÄS SPELARE FRÅN FIL
+   START – LÄS SPELARE
 ====================================================== */
 
 fetch("players.txt")
@@ -50,7 +51,7 @@ fetch("players.txt")
     });
 
 /* ======================================================
-   STDOUT (printf)
+   STDOUT
 ====================================================== */
 
 function write(text) {
@@ -59,16 +60,18 @@ function write(text) {
     out.scrollTop = out.scrollHeight;
 }
 
+/* ======================================================
+   PROMPTS
+====================================================== */
+
 function printPlayerList() {
     write("=== SPELARLISTA ===\n");
-    for (let i = 0; i < players.length; i++) {
-        write(i + ": " + players[i] + "\n");
-    }
+    players.forEach((p, i) => write(i + ": " + p + "\n"));
     write("\n");
 }
 
 function printTop3Prompt() {
-    write("Välj TOPP 3 i kronologisk ordning (inga dubletter)\n");
+    write("Välj TOPP 3 i ordning\n");
     write("Plats " + (inputCount + 1) + ": ");
 }
 
@@ -80,13 +83,17 @@ function printFlopPrompt() {
     write("\nVälj ÅRETS FLOP: ");
 }
 
+function printLowestRoundPrompt() {
+    write("\nVälj SPELARE för LÄGSTA RUNDA: ");
+}
+
 function printAdminResultPrompt() {
-    write("\n=== ADMIN: ANGE SLUTRESULTAT TOPP 10 ===\n");
+    write("\n=== ADMIN: SLUTRESULTAT TOPP 10 ===\n");
     write("Plats " + (adminResultCount + 1) + ": ");
 }
 
 /* ======================================================
-   STDIN (scanf)
+   INPUT
 ====================================================== */
 
 function submitInput() {
@@ -99,60 +106,58 @@ function submitInput() {
         return;
     }
 
-    /* ---------- TOPP 3 ---------- */
     if (step === 0) {
         if (userGuesses.top3.includes(players[index])) {
-            write("\nFel: spelaren redan vald i topp 3\n");
+            write("\nFel: redan vald\n");
             return;
         }
-
         userGuesses.top3.push(players[index]);
         inputCount++;
-
-        if (inputCount < 3) {
-            printTop3Prompt();
-        } else {
-            step = 1;
-            printSurprisePrompt();
-        }
+        if (inputCount < 3) printTop3Prompt();
+        else { step = 1; printSurprisePrompt(); }
     }
 
-    /* ---------- ÖVERRASKNING ---------- */
     else if (step === 1) {
         userGuesses.surprise = players[index];
         step = 2;
         printFlopPrompt();
     }
 
-    /* ---------- FLOP ---------- */
     else if (step === 2) {
         userGuesses.flop = players[index];
         step = 3;
+        printLowestRoundPrompt();
+    }
+
+    else if (step === 3) {
+        userGuesses.lowestRound = players[index];
+        step = 4;
         printUserSummary();
         printAdminResultPrompt();
     }
 
-    /* ---------- ADMIN: TOPP 10 ---------- */
-    else if (step === 3) {
+    else if (step === 4) {
         if (resultTop10.includes(players[index])) {
-            write("\nFel: spelaren redan vald i resultatet\n");
+            write("\nFel: redan vald\n");
             return;
         }
-
         resultTop10.push(players[index]);
         adminResultCount++;
-
-        if (adminResultCount < 10) {
-            printAdminResultPrompt();
-        } else {
-            step = 4;
-            calculateAndPrintScore();
-        }
+        if (adminResultCount < 10) printAdminResultPrompt();
+        else calculateAndPrintScore();
     }
 }
 
 /* ======================================================
-   SAMMANFATTNING
+   ADMIN
+====================================================== */
+
+function setLowestRoundWinner(playerName) {
+    lowestRoundWinner = playerName;
+}
+
+/* ======================================================
+   SUMMARY
 ====================================================== */
 
 function printUserSummary() {
@@ -162,46 +167,31 @@ function printUserSummary() {
     write("3. " + userGuesses.top3[2] + "\n");
     write("Överraskning: " + userGuesses.surprise + "\n");
     write("Flop: " + userGuesses.flop + "\n");
+    write("Lägsta runda: " + userGuesses.lowestRound + "\n");
 }
 
 /* ======================================================
-   HJÄLPFUNKTIONER
+   LOGIK
 ====================================================== */
 
 function getFinishPosition(player) {
-    const index = resultTop10.indexOf(player);
-    return index === -1 ? 999 : index + 1;
+    const i = resultTop10.indexOf(player);
+    return i === -1 ? 999 : i + 1;
 }
-
-/* ---------- FLOP-LOGIK ---------- */
-/*
-Rank 1–5  → måste vara topp 5
-Rank 6–10 → måste vara topp 10
-*/
 
 function isFlop(player) {
     const rank = worldRanking[player] ?? 999;
     const finish = getFinishPosition(player);
-
     if (rank <= 5 && finish > 5) return true;
-    if (rank >= 6 && rank <= 10 && finish > 10) return true;
-
+    if (rank <= 10 && finish > 10) return true;
     return false;
 }
-
-/* ---------- ÖVERRASKNING-LOGIK ---------- */
-/*
-Rank > 10 → topp 5
-Rank 1–10 → MÅSTE VINNA
-*/
 
 function isSurprise(player) {
     const rank = worldRanking[player] ?? 999;
     const finish = getFinishPosition(player);
-
     if (rank > 10 && finish <= 5) return true;
     if (rank <= 10 && finish === 1) return true;
-
     return false;
 }
 
@@ -214,44 +204,34 @@ function calculateAndPrintScore() {
 
     write("\n=== POÄNGBERÄKNING ===\n");
 
-    /* ---------- TOPP 3 ---------- */
     write("\nTOPP 3:\n");
     for (let i = 0; i < 3; i++) {
-        const player = userGuesses.top3[i];
-
-        if (player === resultTop10[i]) {
-            score += 15;
-            write("✔ " + player + " rätt plats (+15)\n");
-        } 
-        else if (resultTop10.includes(player)) {
-            score += 5;
-            write("✔ " + player + " i topp 10 men fel plats (+5)\n");
-        } 
-        else {
-            write("✖ " + player + " ej topp 10 (+0)\n");
-        }
+        const p = userGuesses.top3[i];
+        if (p === resultTop10[i]) { score += 15; write("✔ " + p + " rätt plats (+15)\n"); }
+        else if (resultTop10.includes(p)) { score += 5; write("✔ " + p + " topp 10 (+5)\n"); }
+        else write("✖ " + p + " (+0)\n");
     }
 
-    /* ---------- FLOP ---------- */
     write("\nFLOP:\n");
-    if (isFlop(userGuesses.flop)) {
-        score += 10;
-        write("✔ " + userGuesses.flop + " räknas som FLOP (+10)\n");
-    } else {
-        write("✖ " + userGuesses.flop + " räknas INTE som flop (+0)\n");
-    }
+    if (isFlop(userGuesses.flop)) { score += 10; write("✔ " + userGuesses.flop + " FLOP (+10)\n"); }
+    else write("✖ " + userGuesses.flop + " (+0)\n");
 
-    /* ---------- ÖVERRASKNING ---------- */
     write("\nÖVERRASKNING:\n");
-    if (isSurprise(userGuesses.surprise)) {
+    if (isSurprise(userGuesses.surprise)) { score += 10; write("✔ " + userGuesses.surprise + " ÖVERRASKNING (+10)\n"); }
+    else write("✖ " + userGuesses.surprise + " (+0)\n");
+
+    write("\nLÄGSTA RUNDA:\n");
+    if (userGuesses.lowestRound === lowestRoundWinner) {
         score += 10;
-        write("✔ " + userGuesses.surprise + " räknas som ÖVERRASKNING (+10)\n");
+        write("✔ " + lowestRoundWinner + " lägsta runda (+10)\n");
     } else {
-        write("✖ " + userGuesses.surprise + " räknas INTE som överraskning (+0)\n");
+        write("✖ Gissade " + userGuesses.lowestRound + ", rätt var " + lowestRoundWinner + " (+0)\n");
     }
 
-    /* ---------- SLUT ---------- */
     write("\n=== TOTAL POÄNG ===\n");
     write("Total poäng: " + score + "\n");
-}
 
+    document.getElementById("first").textContent = resultTop10[0] || "–";
+    document.getElementById("second").textContent = resultTop10[1] || "–";
+    document.getElementById("third").textContent = resultTop10[2] || "–";
+}
