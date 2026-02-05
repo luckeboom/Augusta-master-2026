@@ -1,20 +1,45 @@
-/* ========= GLOBAL DATA ========= */
+/* ======================================================
+   GLOBAL DATA
+====================================================== */
 
 let players = [];
 
-let step = 0;        // programsteg
-let inputCount = 0; // räknar topp-3-val
+/* Programflöde (printf / scanf-stil) */
+let step = 0;
+let inputCount = 0;
+let adminResultCount = 0;
 
+/* Användarens val */
 let userGuesses = {
     top3: [],
     surprise: null,
     flop: null
 };
 
-// ADMIN / FACIT (gemensamt resultat)
-let resultTop3 = [null, null, null];
+/* ADMIN – SLUTRESULTAT */
+let resultTop10 = []; // index 0 = 1:a, index 9 = 10:e
 
-/* ========= START ========= */
+/* ======================================================
+   VÄRLDSRANKING (DAGENS – FAST DATA)
+   Alla som inte finns här ⇒ rank > 10
+====================================================== */
+
+const worldRanking = {
+    "Scottie Scheffler": 1,
+    "Rory McIlroy": 2,
+    "Justin Rose": 3,
+    "Tommy Fleetwood": 4,
+    "Russell Henley": 5,
+    "Robert MacIntyre": 6,
+    "J.J. Spaun": 7,
+    "Xander Schauffele": 8,
+    "Ben Griffin": 9,
+    "Justin Thomas": 10
+};
+
+/* ======================================================
+   START – LÄS SPELARE FRÅN FIL
+====================================================== */
 
 fetch("players.txt")
     .then(r => r.text())
@@ -24,7 +49,9 @@ fetch("players.txt")
         printTop3Prompt();
     });
 
-/* ========= STDOUT ========= */
+/* ======================================================
+   STDOUT (printf)
+====================================================== */
 
 function write(text) {
     const out = document.getElementById("stdout");
@@ -53,12 +80,14 @@ function printFlopPrompt() {
     write("\nVälj ÅRETS FLOP: ");
 }
 
-function printResultPrompt() {
-    write("\n=== ADMIN: ANGE RESULTAT ===\n");
-    write("Vinnare (1): ");
+function printAdminResultPrompt() {
+    write("\n=== ADMIN: ANGE SLUTRESULTAT TOPP 10 ===\n");
+    write("Plats " + (adminResultCount + 1) + ": ");
 }
 
-/* ========= STDIN ========= */
+/* ======================================================
+   STDIN (scanf)
+====================================================== */
 
 function submitInput() {
     const input = document.getElementById("stdin");
@@ -70,7 +99,7 @@ function submitInput() {
         return;
     }
 
-    /* ===== TOPP 3 (ingen dublett) ===== */
+    /* ---------- TOPP 3 ---------- */
     if (step === 0) {
         if (userGuesses.top3.includes(players[index])) {
             write("\nFel: spelaren redan vald i topp 3\n");
@@ -88,40 +117,43 @@ function submitInput() {
         }
     }
 
-    /* ===== ÖVERRASKNING ===== */
+    /* ---------- ÖVERRASKNING ---------- */
     else if (step === 1) {
         userGuesses.surprise = players[index];
         step = 2;
         printFlopPrompt();
     }
 
-    /* ===== FLOP ===== */
+    /* ---------- FLOP ---------- */
     else if (step === 2) {
         userGuesses.flop = players[index];
         step = 3;
         printUserSummary();
-        printResultPrompt();
+        printAdminResultPrompt();
     }
 
-    /* ===== ADMIN: RESULTAT ===== */
+    /* ---------- ADMIN: TOPP 10 ---------- */
     else if (step === 3) {
-        resultTop3[0] = players[index];
-        step = 4;
-        write("\n2:a plats: ");
-    }
-    else if (step === 4) {
-        resultTop3[1] = players[index];
-        step = 5;
-        write("\n3:e plats: ");
-    }
-    else if (step === 5) {
-        resultTop3[2] = players[index];
-        step = 6;
-        calculateAndPrintScore();
+        if (resultTop10.includes(players[index])) {
+            write("\nFel: spelaren redan vald i resultatet\n");
+            return;
+        }
+
+        resultTop10.push(players[index]);
+        adminResultCount++;
+
+        if (adminResultCount < 10) {
+            printAdminResultPrompt();
+        } else {
+            step = 4;
+            calculateAndPrintScore();
+        }
     }
 }
 
-/* ========= SAMMANFATTNING ========= */
+/* ======================================================
+   SAMMANFATTNING
+====================================================== */
 
 function printUserSummary() {
     write("\n=== DINA VAL ===\n");
@@ -132,24 +164,78 @@ function printUserSummary() {
     write("Flop: " + userGuesses.flop + "\n");
 }
 
-/* ========= POÄNG ========= */
+/* ======================================================
+   HJÄLPFUNKTIONER
+====================================================== */
+
+function getFinishPosition(player) {
+    const index = resultTop10.indexOf(player);
+    return index === -1 ? 999 : index + 1;
+}
+
+/* ---------- FLOP-LOGIK ---------- */
+/*
+Rank 1–5  → måste vara topp 5
+Rank 6–10 → måste vara topp 10
+*/
+
+function isFlop(player) {
+    const rank = worldRanking[player] ?? 999;
+    const finish = getFinishPosition(player);
+
+    if (rank <= 5 && finish > 5) return true;
+    if (rank >= 6 && rank <= 10 && finish > 10) return true;
+
+    return false;
+}
+
+/* ---------- ÖVERRASKNING-LOGIK ---------- */
+/*
+Rank > 10 → topp 5
+Rank 1–10 → MÅSTE VINNA
+*/
+
+function isSurprise(player) {
+    const rank = worldRanking[player] ?? 999;
+    const finish = getFinishPosition(player);
+
+    if (rank > 10 && finish <= 5) return true;
+    if (rank <= 10 && finish === 1) return true;
+
+    return false;
+}
+
+/* ======================================================
+   POÄNGBERÄKNING
+====================================================== */
 
 function calculateAndPrintScore() {
     let score = 0;
 
+    /* TOPP 3 */
     for (let i = 0; i < 3; i++) {
-        if (userGuesses.top3[i] === resultTop3[i]) {
+        if (userGuesses.top3[i] === resultTop10[i]) {
             score += 15; // rätt spelare + rätt plats
-        }
-        else if (resultTop3.includes(userGuesses.top3[i])) {
+        } else if (resultTop10.includes(userGuesses.top3[i])) {
             score += 5;  // rätt spelare, fel plats
         }
     }
 
-    write("\n=== RESULTAT ===\n");
-    write("1. " + resultTop3[0] + "\n");
-    write("2. " + resultTop3[1] + "\n");
-    write("3. " + resultTop3[2] + "\n");
+    /* FLOP */
+    if (isFlop(userGuesses.flop)) {
+        score += 10;
+    }
+
+    /* ÖVERRASKNING */
+    if (isSurprise(userGuesses.surprise)) {
+        score += 10;
+    }
+
+    /* UTSKRIFT */
+    write("\n=== SLUTRESULTAT ===\n");
+    for (let i = 0; i < 10; i++) {
+        write((i + 1) + ". " + resultTop10[i] + "\n");
+    }
 
     write("\n=== POÄNG ===\n");
     write("Total poäng: " + score + "\n");
