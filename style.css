@@ -1,0 +1,29 @@
+body {
+    background-color: #111;
+    color: #eee;
+    font-family: monospace;
+    padding: 20px;
+}
+
+#stdout {
+    background-color: #000;
+    color: #0f0;
+    padding: 15px;
+    height: 420px;
+    overflow-y: auto;
+    border: 1px solid #333;
+    white-space: pre-wrap;
+}
+
+#stdin {
+    margin-top: 10px;
+    padding: 6px;
+    font-family: monospace;
+    width: 200px;
+}
+
+button {
+    margin-left: 5px;
+    padding: 6px 12px;
+    font-family: monospace;
+}
