@@ -212,31 +212,46 @@ function isSurprise(player) {
 function calculateAndPrintScore() {
     let score = 0;
 
-    /* TOPP 3 */
+    write("\n=== POÄNGBERÄKNING ===\n");
+
+    /* ---------- TOPP 3 ---------- */
+    write("\nTOPP 3:\n");
     for (let i = 0; i < 3; i++) {
-        if (userGuesses.top3[i] === resultTop10[i]) {
-            score += 15; // rätt spelare + rätt plats
-        } else if (resultTop10.includes(userGuesses.top3[i])) {
-            score += 5;  // rätt spelare, fel plats
+        const player = userGuesses.top3[i];
+
+        if (player === resultTop10[i]) {
+            score += 15;
+            write("✔ " + player + " rätt plats (+15)\n");
+        } 
+        else if (resultTop10.includes(player)) {
+            score += 5;
+            write("✔ " + player + " i topp 10 men fel plats (+5)\n");
+        } 
+        else {
+            write("✖ " + player + " ej topp 10 (+0)\n");
         }
     }
 
-    /* FLOP */
+    /* ---------- FLOP ---------- */
+    write("\nFLOP:\n");
     if (isFlop(userGuesses.flop)) {
         score += 10;
+        write("✔ " + userGuesses.flop + " räknas som FLOP (+10)\n");
+    } else {
+        write("✖ " + userGuesses.flop + " räknas INTE som flop (+0)\n");
     }
 
-    /* ÖVERRASKNING */
+    /* ---------- ÖVERRASKNING ---------- */
+    write("\nÖVERRASKNING:\n");
     if (isSurprise(userGuesses.surprise)) {
         score += 10;
+        write("✔ " + userGuesses.surprise + " räknas som ÖVERRASKNING (+10)\n");
+    } else {
+        write("✖ " + userGuesses.surprise + " räknas INTE som överraskning (+0)\n");
     }
 
-    /* UTSKRIFT */
-    write("\n=== SLUTRESULTAT ===\n");
-    for (let i = 0; i < 10; i++) {
-        write((i + 1) + ". " + resultTop10[i] + "\n");
-    }
-
-    write("\n=== POÄNG ===\n");
+    /* ---------- SLUT ---------- */
+    write("\n=== TOTAL POÄNG ===\n");
     write("Total poäng: " + score + "\n");
 }
+
