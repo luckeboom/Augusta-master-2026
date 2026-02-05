@@ -1,19 +1,49 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-    <meta charset="UTF-8">
-    <title>Fantasy Golf – Masters 2026</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>Fantasy Golf – Masters 2026</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-<h1>Fantasy Golf – Masters Augusta 2026</h1>
+  <div class="app">
 
-<pre id="stdout"></pre>
+    <header>
+      <h1>Fantasy Golf</h1>
+      <p class="subtitle">Masters · Augusta National · 2026</p>
+    </header>
 
-<input id="stdin" type="number" placeholder="Skriv nummer här">
-<button onclick="submitInput()">Enter</button>
+    <!-- TOPP 3-KORT -->
+    <section class="podium">
+      <div class="podium-card gold">
+        <span>1:a plats</span>
+        <strong id="first">–</strong>
+      </div>
+      <div class="podium-card silver">
+        <span>2:a plats</span>
+        <strong id="second">–</strong>
+      </div>
+      <div class="podium-card bronze">
+        <span>3:e plats</span>
+        <strong id="third">–</strong>
+      </div>
+    </section>
 
-<script src="script.js"></script>
+    <!-- POÄNG & FÖRKLARING -->
+    <section class="scoreboard">
+      <h2>Poängsammanställning</h2>
+      <pre id="stdout"></pre>
+    </section>
+
+    <!-- INPUT -->
+    <section class="input-area">
+      <input id="stdin" type="number" placeholder="Välj spelarnummer…" />
+      <button onclick="submitInput()">OK</button>
+    </section>
+
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
