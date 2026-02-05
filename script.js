@@ -14,7 +14,8 @@ let userGuesses = {
   top3: [],
   surprise: null,
   flop: null,
-  lowestRound: null
+  lowestRound: null,
+  holeOrAlbatross: null
 };
 
 /* ADMIN – RESULTAT */
@@ -90,51 +91,95 @@ function printAdminResultPrompt() {
 
 function submitInput() {
   const input = document.getElementById("stdin");
-  const index = parseInt(input.value);
+  const value = input.value.trim();
   input.value = "";
 
-  if (isNaN(index) || index < 0 || index >= players.length) {
-    write("\nFel: ogiltigt nummer\n");
-    return;
+  let player = null;
+
+  // Steg som kräver spelarnummer
+  if (step === 0 || step === 1 || step === 2 || step === 3 || step === 5) {
+    const index = parseInt(value);
+
+    if (isNaN(index) || index < 0 || index >= players.length) {
+      write("\nFel: ogiltigt nummer\n");
+      return;
+    }
+
+    player = players[index];
   }
 
-  const player = players[index];
-
+  /* ===== STEG 0: TOPP 3 ===== */
   if (step === 0) {
     if (userGuesses.top3.includes(player)) {
       write("\nFel: spelaren redan vald\n");
       return;
     }
+
     userGuesses.top3.push(player);
     inputCount++;
-    if (inputCount < 3) printTop3Prompt();
-    else { step = 1; printSurprisePrompt(); }
+
+    if (inputCount < 3) {
+      printTop3Prompt();
+    } else {
+      step = 1;
+      printSurprisePrompt();
+    }
   }
 
+  /* ===== STEG 1: ÖVERRASKNING ===== */
   else if (step === 1) {
     userGuesses.surprise = player;
     step = 2;
     printFlopPrompt();
   }
 
+  /* ===== STEG 2: FLOP ===== */
   else if (step === 2) {
     userGuesses.flop = player;
     step = 3;
-    printUserSummary();
+    printLowestRoundPrompt();
+  }
+
+  /* ===== STEG 3: LÄGSTA RUNDA ===== */
+  else if (step === 3) {
+    userGuesses.lowestRound = player;
+    step = 4;
+    printHoleOrAlbatrossPrompt();
+  }
+
+  /* ===== STEG 4: HOLE-IN-ONE (ja/nej) ===== */
+  else if (step === 4) {
+    const v = value.toLowerCase();
+
+    if (v !== "ja" && v !== "nej") {
+      write("Skriv ja eller nej\n");
+      printHoleOrAlbatrossPrompt();
+      return;
+    }
+
+    userGuesses.holeOrAlbatross = v;
+    step = 5;
     printAdminResultPrompt();
   }
 
-  else if (step === 3) {
+  /* ===== STEG 5: ADMIN TOPP 10 ===== */
+  else if (step === 5) {
     if (resultTop10.includes(player)) {
       write("\nFel: spelaren redan vald\n");
       return;
     }
+
     resultTop10.push(player);
     adminResultCount++;
-    if (adminResultCount < 10) printAdminResultPrompt();
-    else calculateAndPrintScore();
+
+    if (adminResultCount < 10) {
+      printAdminResultPrompt();
+    } else {
+      calculateAndPrintScore();
+    }
   }
 }
+
 
 /* ======================================================
    ADMIN: LÄGSTA RUNDA
