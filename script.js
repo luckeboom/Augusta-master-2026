@@ -20,7 +20,7 @@ let userGuesses = {
 /* ADMIN – RESULTAT */
 let resultTop10 = [];
 let lowestRoundWinner = null;
-
+let holeOrAlbatrossHappened = false;
 /* ======================================================
    VÄRLDSRANKING (FAST DATA)
 ====================================================== */
@@ -231,6 +231,20 @@ function calculateAndPrintScore() {
   } else {
     write("✗ Ingen giltig gissning (+0)\n");
   }
+     /* HOLE-IN-ONE / ALBATROSS */
+  write("\nHOLE-IN-ONE / ALBATROSS:\n");
+
+  const holeOrAlbatrossHappened = true; // admin sätter detta
+
+  const specialPoints =
+    holeInOneOrAlbatrossMarket(holeOrAlbatrossHappened);
+
+  score += specialPoints;
+
+  write(
+    (specialPoints >= 0 ? "✓ " : "✗ ") +
+    "Poäng: " + specialPoints + "\n"
+  );
 
   write("\n=== TOTAL POÄNG ===\n");
   write("Total poäng: " + score + "\n");
