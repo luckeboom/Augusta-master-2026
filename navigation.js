@@ -6,4 +6,5 @@ function showGame() {
 function showLeaderboard() {
   document.getElementById("stdout").style.display = "none";
   document.getElementById("leaderboard").style.display = "block";
+  loadLeaderboard();
 }
