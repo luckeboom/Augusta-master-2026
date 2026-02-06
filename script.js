@@ -291,14 +291,32 @@ function calculateAndPrintScore() {
     write("✗ " + userGuesses.surprise + " (+0)\n");
   }
 
-  write("\nLÄGSTA RUNDA:\n");
-  if (userGuesses.lowestRound === lowestRoundWinner) {
-    score += 10;
-    write("✓ " + lowestRoundWinner + " (+10)\n");
-  } else {
-    write("✗ Gissade " + userGuesses.lowestRound +
-          ", rätt var " + lowestRoundWinner + " (+0)\n");
-  }
+ /* LÄGSTA RUNDA */
+write("\nLÄGSTA RUNDA:\n");
+
+if (!lowestRoundWinner) {
+  write("✗ Admin har inte satt lägsta runda\n");
+}
+else if (!userGuesses.lowestRound) {
+  write("✗ Du gjorde ingen gissning (+0)\n");
+}
+else if (userGuesses.lowestRound === lowestRoundWinner) {
+  score += 10;
+  write(
+    "✓ Rätt! " +
+    userGuesses.lowestRound +
+    " hade lägsta rundan (+10)\n"
+  );
+}
+else {
+  write(
+    "✗ Fel. Du gissade " +
+    userGuesses.lowestRound +
+    ", admin satte " +
+    lowestRoundWinner +
+    " (+0)\n"
+  );
+}
 
   /* HOLE-IN-ONE / ALBATROSS */
 write("\nHOLE-IN-ONE / ALBATROSS:\n");
