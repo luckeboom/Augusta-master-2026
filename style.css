@@ -95,3 +95,57 @@ button {
   font-weight: bold;
   cursor: pointer;
 }
+
+/* =====================
+   NAVIGATION
+===================== */
+
+.top-nav {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin: 16px 0 24px;
+}
+
+.top-nav button {
+  background: rgba(255,255,255,0.15);
+  color: #eaf5ef;
+}
+
+.top-nav button:hover {
+  background: rgba(255,255,255,0.25);
+}
+
+/* =====================
+   LEADERBOARD
+===================== */
+
+#leaderboard .row {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+}
+
+#leaderboard .row:last-child {
+  border-bottom: none;
+}
+
+#leaderboard .rank {
+  font-weight: bold;
+  opacity: 0.8;
+}
+
+#leaderboard .name {
+  text-align: left;
+}
+
+#leaderboard .points {
+  font-weight: bold;
+}
+
+#leaderboard .top3 {
+  color: #ffd700;
+}
+
