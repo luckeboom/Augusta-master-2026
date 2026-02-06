@@ -102,6 +102,23 @@ function printAdminHolePrompt() {
   write("\nADMIN: Blev det Hole-in-One eller Albatross? (ja/nej): ");
 }
 
+function printUserSummary() {
+  write("\n=== DINA VAL ===\n");
+
+  write("TOPP 3:\n");
+  userGuesses.top3.forEach((p, i) => {
+    write((i + 1) + ": " + p + "\n");
+  });
+
+  write("\nÖVERRASKNING:\n" + userGuesses.surprise + "\n");
+  write("\nFLOP:\n" + userGuesses.flop + "\n");
+  write("\nLÄGSTA RUNDA:\n" + userGuesses.lowestRound + "\n");
+  write(
+    "\nHOLE-IN-ONE / ALBATROSS:\n" +
+    userGuesses.holeOrAlbatross.toUpperCase() + "\n"
+  );
+}
+
 /* ======================================================
    INPUT
 ====================================================== */
@@ -170,6 +187,7 @@ function submitInput() {
     }
 
     userGuesses.holeOrAlbatross = value;
+    printUserSummary();
     step = 5;
     printAdminResultPrompt();
   }
@@ -252,16 +270,28 @@ function calculateAndPrintScore() {
   });
 
   write("\nFLOP:\n");
-  score += isFlop(userGuesses.flop) ? 10 : 0;
-  write(isFlop(userGuesses.flop) ? "✓ FLOP (+10)\n" : "✗ Fel (+0)\n");
+  if (isFlop(userGuesses.flop)) {
+    score += 10;
+    write("✓ FLOP (+10)\n");
+  } else {
+    write("✗ Fel (+0)\n");
+  }
 
   write("\nÖVERRASKNING:\n");
-  score += isSurprise(userGuesses.surprise) ? 10 : 0;
-  write(isSurprise(userGuesses.surprise) ? "✓ ÖVERRASKNING (+10)\n" : "✗ Fel (+0)\n");
+  if (isSurprise(userGuesses.surprise)) {
+    score += 10;
+    write("✓ ÖVERRASKNING (+10)\n");
+  } else {
+    write("✗ Fel (+0)\n");
+  }
 
   write("\nLÄGSTA RUNDA:\n");
-  score += userGuesses.lowestRound === lowestRoundWinner ? 10 : 0;
-  write(userGuesses.lowestRound === lowestRoundWinner ? "✓ Rätt (+10)\n" : "✗ Fel (+0)\n");
+  if (userGuesses.lowestRound === lowestRoundWinner) {
+    score += 10;
+    write("✓ Rätt (+10)\n");
+  } else {
+    write("✗ Fel (+0)\n");
+  }
 
   write("\nHOLE-IN-ONE / ALBATROSS:\n");
   const specialPoints = holeInOneOrAlbatrossMarket(
@@ -270,7 +300,12 @@ function calculateAndPrintScore() {
   );
   score += specialPoints;
 
-  write("Poäng: " + specialPoints + "\n");
+  write(
+    "Du svarade: " + userGuesses.holeOrAlbatross.toUpperCase() +
+    " | Händelse: " + (holeOrAlbatrossHappened ? "JA" : "NEJ") +
+    " | Poäng: " + specialPoints + "\n"
+  );
+
   write("\n=== TOTAL POÄNG ===\n");
   write("Total poäng: " + score + "\n");
 
