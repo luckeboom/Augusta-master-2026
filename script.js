@@ -147,6 +147,7 @@ function submitInput() {
     } else {
       step = 1;
       printSurprisePrompt();
+       return;
     }
   }
 
@@ -155,6 +156,7 @@ function submitInput() {
     userGuesses.surprise = player;
     step = 2;
     printFlopPrompt();
+     return;
   }
 
   /* ===== STEG 2: FLOP ===== */
@@ -162,6 +164,7 @@ function submitInput() {
     userGuesses.flop = player;
     step = 3;
     printLowestRoundPrompt();
+     return;
   }
 
   /* ===== STEG 3: LÄGSTA RUNDA (USER) ===== */
@@ -169,6 +172,7 @@ function submitInput() {
     userGuesses.lowestRound = player;
     step = 4;
     printHoleOrAlbatrossPrompt();
+     return;
   }
 
   /* ===== STEG 4: HOLE-IN-ONE / ALBATROSS (USER) ===== */
@@ -203,6 +207,7 @@ function submitInput() {
     } else {
       step = 6;
       printAdminLowestRoundPrompt();
+       return;
     }
   }
 
@@ -211,6 +216,7 @@ function submitInput() {
     lowestRoundWinner = player;
     step = 7;
     printAdminHolePrompt();
+     return;
   }
 
   /* ===== STEG 7: ADMIN HOLE-IN-ONE ===== */
