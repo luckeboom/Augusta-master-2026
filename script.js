@@ -79,25 +79,27 @@ function printSurprisePrompt() {
 function printFlopPrompt() {
   write("\nVälj ÅRETS FLOP: ");
 }
+function printLowestRoundPrompt() {
+  write("\nVälj LÄGSTA RUNDA: ");
+}
+
+function printHoleOrAlbatrossPrompt() {
+  write("\nTror du det blir Hole-in-One eller Albatross? (ja/nej): ");
+}
 
 function printAdminResultPrompt() {
   write("\n=== ADMIN: SLUTRESULTAT TOPP 10 ===\n");
   write("Plats " + (adminResultCount + 1) + ": ");
 }
 
-/* ======================================================
-   INPUT
-====================================================== */
-
+/* Input */
 function submitInput() {
   const input = document.getElementById("stdin");
   const value = input.value.trim();
   input.value = "";
 
-  let player = null;
-
-  // Steg som kräver spelarnummer
-  if (step === 0 || step === 1 || step === 2 || step === 3 || step === 5) {
+  // STEG SOM KRÄVER NUMMER (spelare)
+  if (step === 0 || step === 1 || step === 2 || step === 3) {
     const index = parseInt(value);
 
     if (isNaN(index) || index < 0 || index >= players.length) {
@@ -105,55 +107,52 @@ function submitInput() {
       return;
     }
 
-    player = players[index];
-  }
+    const player = players[index];
 
-  /* ===== STEG 0: TOPP 3 ===== */
-  if (step === 0) {
-    if (userGuesses.top3.includes(player)) {
-      write("\nFel: spelaren redan vald\n");
-      return;
+    if (step === 0) {
+      if (userGuesses.top3.includes(player)) {
+        write("\nFel: spelaren redan vald\n");
+        return;
+      }
+      userGuesses.top3.push(player);
+      inputCount++;
+      if (inputCount < 3) printTop3Prompt();
+      else { step = 1; printSurprisePrompt(); }
     }
 
-    userGuesses.top3.push(player);
-    inputCount++;
-
-    if (inputCount < 3) {
-      printTop3Prompt();
-    } else {
-      step = 1;
-      printSurprisePrompt();
+    else if (step === 1) {
+      userGuesses.surprise = player;
+      step = 2;
+      printFlopPrompt();
     }
+
+    else if (step === 2) {
+      userGuesses.flop = player;
+      step = 3;
+      printUserSummary();
+      printAdminResultPrompt();
+    }
+
+    else if (step === 3) {
+      if (resultTop10.includes(player)) {
+        write("\nFel: spelaren redan vald\n");
+        return;
+      }
+      resultTop10.push(player);
+      adminResultCount++;
+      if (adminResultCount < 10) printAdminResultPrompt();
+      else calculateAndPrintScore();
+    }
+
+    return;
   }
 
-  /* ===== STEG 1: ÖVERRASKNING ===== */
-  else if (step === 1) {
-    userGuesses.surprise = player;
-    step = 2;
-    printFlopPrompt();
-  }
-
-  /* ===== STEG 2: FLOP ===== */
-  else if (step === 2) {
-    userGuesses.flop = player;
-    step = 3;
-    printLowestRoundPrompt();
-  }
-
-  /* ===== STEG 3: LÄGSTA RUNDA ===== */
-  else if (step === 3) {
-    userGuesses.lowestRound = player;
-    step = 4;
-    printHoleOrAlbatrossPrompt();
-  }
-
-  /* ===== STEG 4: HOLE-IN-ONE (ja/nej) ===== */
-  else if (step === 4) {
+  // STEG SOM KRÄVER TEXT (JA / NEJ)
+  if (step === 4) {
     const v = value.toLowerCase();
 
     if (v !== "ja" && v !== "nej") {
       write("Skriv ja eller nej\n");
-      printHoleOrAlbatrossPrompt();
       return;
     }
 
@@ -161,24 +160,8 @@ function submitInput() {
     step = 5;
     printAdminResultPrompt();
   }
-
-  /* ===== STEG 5: ADMIN TOPP 10 ===== */
-  else if (step === 5) {
-    if (resultTop10.includes(player)) {
-      write("\nFel: spelaren redan vald\n");
-      return;
-    }
-
-    resultTop10.push(player);
-    adminResultCount++;
-
-    if (adminResultCount < 10) {
-      printAdminResultPrompt();
-    } else {
-      calculateAndPrintScore();
-    }
-  }
 }
+
 
 
 /* ======================================================
