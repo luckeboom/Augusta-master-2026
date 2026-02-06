@@ -105,11 +105,12 @@ function printAdminHolePrompt() {
 /* ======================================================
    INPUT
 ====================================================== */
-
 function submitInput() {
-  const input = document.getElementById("stdin");
-  const value = input.value.trim().toLowerCase(); // ← ENDA ÄNDRINGEN
-  input.value = "";
+const input = document.getElementById("stdin");
+const rawValue = input.value.trim();        // ORIGINAL (för nummer)
+const value = rawValue.toLowerCase();       // ENDAST för ja/nej
+input.value = "";
+
 
   let player = null;
 
@@ -122,7 +123,7 @@ function submitInput() {
     step === 5 ||
     step === 6
   ) {
-    const index = parseInt(value);
+    const index = parseInt(rawvalue);
 
     if (isNaN(index) || index < 0 || index >= players.length) {
       write("\nFel: ogiltigt nummer\n");
