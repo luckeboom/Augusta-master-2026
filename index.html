@@ -7,45 +7,80 @@
 </head>
 <body>
 
-  <div class="app">
+  <!-- =====================
+       NAVIGATION (NY)
+  ====================== -->
+  <nav class="top-nav">
+    <button onclick="showGame()">Spel</button>
+    <button onclick="showLeaderboard()">Leaderboard</button>
+  </nav>
 
-    <header>
-      <h1>Fantasy Golf</h1>
-      <p class="subtitle">Masters · Augusta National · 2026</p>
-    </header>
+  <!-- =====================
+       SPEL-VY (BEFINTLIG KOD, INTE ÄNDRAD)
+  ====================== -->
+  <div id="gameView">
 
-    <!-- TOPP 3-KORT -->
-    <section class="podium">
-      <div class="podium-card gold">
-        <span>1:a plats</span>
-        <strong id="first">–</strong>
-      </div>
-      <div class="podium-card silver">
-        <span>2:a plats</span>
-        <strong id="second">–</strong>
-      </div>
-      <div class="podium-card bronze">
-        <span>3:e plats</span>
-        <strong id="third">–</strong>
-      </div>
-    </section>
+    <div class="app">
 
-    <!-- POÄNG & FÖRKLARING -->
-    <section class="scoreboard">
-      <h2>Poängsammanställning</h2>
-      <pre id="stdout"></pre>
-    </section>
+      <header>
+        <h1>Fantasy Golf</h1>
+        <p class="subtitle">Masters · Augusta National · 2026</p>
+      </header>
 
-    <!-- INPUT -->
-    <section class="input-area">
-      <input id="stdin" type="number" placeholder="Välj spelarnummer…" />
-      <button onclick="submitInput()">OK</button>
-    </section>
+      <!-- TOPP 3-KORT -->
+      <section class="podium">
+        <div class="podium-card gold">
+          <span>1:a plats</span>
+          <strong id="first">–</strong>
+        </div>
+        <div class="podium-card silver">
+          <span>2:a plats</span>
+          <strong id="second">–</strong>
+        </div>
+        <div class="podium-card bronze">
+          <span>3:e plats</span>
+          <strong id="third">–</strong>
+        </div>
+      </section>
 
+      <!-- POÄNG & FÖRKLARING -->
+      <section class="scoreboard">
+        <h2>Poängsammanställning</h2>
+        <pre id="stdout"></pre>
+      </section>
+
+      <!-- INPUT -->
+      <section class="input-area">
+        <input id="stdin" type="number" placeholder="Välj spelarnummer…" />
+        <button onclick="submitInput()">OK</button>
+      </section>
+
+    </div>
   </div>
-  
+
+  <!-- =====================
+       LEADERBOARD-VY (NY)
+  ====================== -->
+  <div id="leaderboardView" style="display:none;">
+    <div class="app">
+      <header>
+        <h1>Leaderboard</h1>
+        <p class="subtitle">Totala poäng</p>
+      </header>
+
+      <section class="scoreboard">
+        <div id="leaderboard"></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- =====================
+       SCRIPT (ORDNING VIKTIG)
+  ====================== -->
   <script src="markets.js"></script>
   <script src="script.js"></script>
-  
+  <script src="leaderboard.js"></script>
+  <script src="navigation.js"></script>
+
 </body>
 </html>
