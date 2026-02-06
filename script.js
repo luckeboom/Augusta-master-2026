@@ -185,6 +185,7 @@ function submitInput() {
     printUserSummary();
     step = 5;
     printAdminResultPrompt();
+     return;
   }
 
   /* ===== STEG 5: ADMIN TOPP 10 ===== */
@@ -224,6 +225,7 @@ function submitInput() {
 
     holeOrAlbatrossHappened = v === "ja";
     calculateAndPrintScore();
+     return;
   }
 }
 
@@ -327,11 +329,11 @@ const specialPoints =
 score += specialPoints;
 
 write(
+  (specialPoints > 0 ? "✓ Rätt! " : "✗ Fel. ") +
   "Du svarade: " + userGuesses.holeOrAlbatross +
-  " | Händelse: " + (holeOrAlbatrossHappened ? "JA" : "NEJ") +
-  " | Poäng: " + specialPoints + "\n"
+  ", admin: " + (holeOrAlbatrossHappened ? "ja" : "nej") +
+  " (" + (specialPoints >= 0 ? "+" : "") + specialPoints + ")\n"
 );
-
 
   write("\n=== TOTAL POÄNG ===\n");
   write("Total poäng: " + score + "\n");
