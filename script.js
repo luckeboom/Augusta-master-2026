@@ -182,6 +182,7 @@ function submitInput() {
     }
 
     userGuesses.holeOrAlbatross = v;
+    printUserSummary();
     step = 5;
     printAdminResultPrompt();
   }
@@ -260,15 +261,19 @@ function calculateAndPrintScore() {
 
   write("\n=== POÄNGBERÄKNING ===\n");
 
-  write("\nTOPP 3:\n");
-  userGuesses.top3.forEach((p, i) => {
-    if (p === resultTop10[i]) {
-      score += 15;
-      write("✓ " + p + " rätt plats (+15)\n");
-    } else {
-      write("✗ " + p + " fel plats (+0)\n");
-    }
-  });
+ /* TOPP 3 */
+ write("\nTOPP 3:\n");
+ userGuesses.top3.forEach((p, i) => {
+  if (p === resultTop10[i]) {
+    score += 15;
+    write("✓ " + p + " rätt plats (+15)\n");
+  } else if (resultTop10.slice(0,3).includes(p)) {
+    score += 5;
+    write("✓ " + p + " topp 3 men fel plats (+5)\n");
+  } else {
+    write("✗ " + p + " ej topp 3 (+0)\n");
+  }
+});
 
   write("\nFLOP:\n");
   if (isFlop(userGuesses.flop)) {
@@ -295,17 +300,20 @@ function calculateAndPrintScore() {
           ", rätt var " + lowestRoundWinner + " (+0)\n");
   }
 
-  write("\nHOLE-IN-ONE / ALBATROSS:\n");
-  if (
-    (userGuesses.holeOrAlbatross === "ja" && holeOrAlbatrossHappened) ||
-    (userGuesses.holeOrAlbatross === "nej" && !holeOrAlbatrossHappened)
-  ) {
-    score += userGuesses.holeOrAlbatross === "ja" ? 10 : 4;
-    write("✓ Rätt (+poäng)\n");
-  } else {
-    score -= userGuesses.holeOrAlbatross === "ja" ? 4 : 10;
-    write("✗ Fel (-poäng)\n");
-  }
+  /* HOLE-IN-ONE / ALBATROSS */
+write("\nHOLE-IN-ONE / ALBATROSS:\n");
+
+const specialPoints =
+  holeInOneOrAlbatrossMarket(holeOrAlbatrossHappened);
+
+score += specialPoints;
+
+write(
+  "Du svarade: " + userGuesses.holeOrAlbatross +
+  " | Händelse: " + (holeOrAlbatrossHappened ? "JA" : "NEJ") +
+  " | Poäng: " + specialPoints + "\n"
+);
+
 
   write("\n=== TOTAL POÄNG ===\n");
   write("Total poäng: " + score + "\n");
