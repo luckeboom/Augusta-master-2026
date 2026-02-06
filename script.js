@@ -105,31 +105,26 @@ function printAdminHolePrompt() {
 /* ======================================================
    INPUT
 ====================================================== */
-function submitInput() {
-const input = document.getElementById("stdin");
-const rawValue = input.value.trim();        // ORIGINAL (för nummer)
-const value = rawValue.toLowerCase();       // ENDAST för ja/nej
-input.value = "";
 
+function submitInput() {
+  if (!players.length) {
+    write("Spelare laddas, vänta lite...\n");
+    return;
+  }
+
+  const input = document.getElementById("stdin");
+  const rawValue = input.value.trim();
+  const value = rawValue.toLowerCase();
+  input.value = "";
 
   let player = null;
 
-  /* ===== STEG SOM KRÄVER NUMMER ===== */
-  if (
-    step === 0 ||
-    step === 1 ||
-    step === 2 ||
-    step === 3 ||
-    step === 5 ||
-    step === 6
-  ) {
-    const index = parseInt(rawvalue);
-
+  if ([0, 1, 2, 3, 5, 6].includes(step)) {
+    const index = parseInt(rawValue);
     if (isNaN(index) || index < 0 || index >= players.length) {
       write("\nFel: ogiltigt nummer\n");
       return;
     }
-
     player = players[index];
   }
 
@@ -146,7 +141,6 @@ input.value = "";
     else {
       step = 1;
       printSurprisePrompt();
-      return;
     }
   }
 
@@ -154,21 +148,18 @@ input.value = "";
     userGuesses.surprise = player;
     step = 2;
     printFlopPrompt();
-    return;
   }
 
   else if (step === 2) {
     userGuesses.flop = player;
     step = 3;
     printLowestRoundPrompt();
-    return;
   }
 
   else if (step === 3) {
     userGuesses.lowestRound = player;
     step = 4;
     printHoleOrAlbatrossPrompt();
-    return;
   }
 
   else if (step === 4) {
@@ -179,10 +170,8 @@ input.value = "";
     }
 
     userGuesses.holeOrAlbatross = value;
-    printUserSummary();
     step = 5;
     printAdminResultPrompt();
-    return;
   }
 
   else if (step === 5) {
@@ -198,7 +187,6 @@ input.value = "";
     else {
       step = 6;
       printAdminLowestRoundPrompt();
-      return;
     }
   }
 
@@ -206,7 +194,6 @@ input.value = "";
     lowestRoundWinner = player;
     step = 7;
     printAdminHolePrompt();
-    return;
   }
 
   else if (step === 7) {
@@ -218,7 +205,6 @@ input.value = "";
 
     holeOrAlbatrossHappened = value === "ja";
     calculateAndPrintScore();
-    return;
   }
 }
 
@@ -234,17 +220,13 @@ function getFinishPosition(player) {
 function isFlop(player) {
   const rank = worldRanking[player] ?? 999;
   const finish = getFinishPosition(player);
-  if (rank <= 5 && finish > 5) return true;
-  if (rank >= 6 && rank <= 10 && finish > 10) return true;
-  return false;
+  return (rank <= 5 && finish > 5) || (rank <= 10 && finish > 10);
 }
 
 function isSurprise(player) {
   const rank = worldRanking[player] ?? 999;
   const finish = getFinishPosition(player);
-  if (rank > 10 && finish <= 5) return true;
-  if (rank <= 10 && finish === 1) return true;
-  return false;
+  return (rank > 10 && finish <= 5) || (rank <= 10 && finish === 1);
 }
 
 /* ======================================================
@@ -261,7 +243,7 @@ function calculateAndPrintScore() {
     if (p === resultTop10[i]) {
       score += 15;
       write("✓ " + p + " rätt plats (+15)\n");
-    } else if (resultTop10.slice(0,3).includes(p)) {
+    } else if (resultTop10.slice(0, 3).includes(p)) {
       score += 5;
       write("✓ " + p + " topp 3 men fel plats (+5)\n");
     } else {
@@ -270,39 +252,25 @@ function calculateAndPrintScore() {
   });
 
   write("\nFLOP:\n");
-  if (isFlop(userGuesses.flop)) {
-    score += 10;
-    write("✓ " + userGuesses.flop + " FLOP (+10)\n");
-  } else {
-    write("✗ " + userGuesses.flop + " (+0)\n");
-  }
+  score += isFlop(userGuesses.flop) ? 10 : 0;
+  write(isFlop(userGuesses.flop) ? "✓ FLOP (+10)\n" : "✗ Fel (+0)\n");
 
   write("\nÖVERRASKNING:\n");
-  if (isSurprise(userGuesses.surprise)) {
-    score += 10;
-    write("✓ " + userGuesses.surprise + " ÖVERRASKNING (+10)\n");
-  } else {
-    write("✗ " + userGuesses.surprise + " (+0)\n");
-  }
+  score += isSurprise(userGuesses.surprise) ? 10 : 0;
+  write(isSurprise(userGuesses.surprise) ? "✓ ÖVERRASKNING (+10)\n" : "✗ Fel (+0)\n");
 
   write("\nLÄGSTA RUNDA:\n");
-  if (userGuesses.lowestRound === lowestRoundWinner) {
-    score += 10;
-    write("✓ Rätt! (+10)\n");
-  } else {
-    write("✗ Fel (+0)\n");
-  }
+  score += userGuesses.lowestRound === lowestRoundWinner ? 10 : 0;
+  write(userGuesses.lowestRound === lowestRoundWinner ? "✓ Rätt (+10)\n" : "✗ Fel (+0)\n");
 
   write("\nHOLE-IN-ONE / ALBATROSS:\n");
-  const specialPoints = holeInOneOrAlbatrossMarket(holeOrAlbatrossHappened);
+  const specialPoints = holeInOneOrAlbatrossMarket(
+    userGuesses.holeOrAlbatross,
+    holeOrAlbatrossHappened
+  );
   score += specialPoints;
 
-  write(
-    "Du svarade: " + userGuesses.holeOrAlbatross +
-    " | Händelse: " + (holeOrAlbatrossHappened ? "JA" : "NEJ") +
-    " | Poäng: " + specialPoints + "\n"
-  );
-
+  write("Poäng: " + specialPoints + "\n");
   write("\n=== TOTAL POÄNG ===\n");
   write("Total poäng: " + score + "\n");
 
