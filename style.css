@@ -159,3 +159,25 @@ button {
 #leaderboard .top3 {
   color: #ffd700;
 }
+
+/* NY, FRISTÅENDE REGEL */
+.app {
+  background: #0b3a2e;
+}
+
+/* NY, FRISTÅENDE REGEL */
+#leaderboardView .app {
+  background: rgba(0,0,0,0.15);
+  border-radius: 22px;
+  padding: 32px;
+}
+#leaderboard {
+  background: rgba(255,255,255,0.06);
+  border-radius: 16px;
+  padding: 16px 24px;
+}
+
+#leaderboard .row:hover {
+  background: rgba(255,255,255,0.05);
+}
+
