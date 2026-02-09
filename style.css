@@ -1,4 +1,4 @@
-´/* =====================
+/* =====================
    DESIGN SYSTEM
 ===================== */
 
@@ -33,10 +33,12 @@ body {
   font-family: system-ui, -apple-system, sans-serif;
 }
 
+/* VIKTIG: behåller grön bakgrund */
 .app {
   max-width: 900px;
   margin: auto;
   padding: 32px;
+  background: var(--bg-main);
 }
 
 header {
@@ -81,6 +83,17 @@ h1 {
 .top-nav button.active {
   background: rgba(255,255,255,0.32);
   font-weight: bold;
+}
+
+/* =====================
+   GAME PAGE
+===================== */
+
+#game-page {
+  background: rgba(0,0,0,0.15);
+  border-radius: 22px;
+  padding: 32px;
+  margin-bottom: 32px;
 }
 
 /* =====================
@@ -177,7 +190,7 @@ h1 {
 }
 
 /* =====================
-   SCOREBOARD / GAME
+   SCOREBOARD / OUTPUT
 ===================== */
 
 .scoreboard {
