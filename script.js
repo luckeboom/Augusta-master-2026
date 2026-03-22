@@ -1,39 +1,3 @@
-/* ======================================================
-   GLOBAL DATA
-====================================================== */
-
-let players = [];
-
-/* Programflöde */
-let step = 0;
-let inputCount = 0;
-let adminResultCount = 0;
-
-/* Användarens val */
-let userGuesses = {
-  top3: [],
-  surprise: null,
-  flop: null,
-  lowestRound: null,
-  holeOrAlbatross: null
-};
-
-/* ADMIN – RESULTAT */
-let resultTop10 = [];
-let lowestRoundWinner = null;
-let holeOrAlbatrossHappened = null;
-
-/* ======================================================
-   VÄRLDSRANKING (FAST DATA)
-====================================================== */
-
-const worldRanking = {
-  "Scottie Scheffler": 1,
-  "Rory McIlroy": 2,
-  "Justin Rose": 3,
-  "Tommy Fleetwood": 4,
-  "Russell Henley": 5,
-  "Robert MacIntyre": 6,
   "J.J. Spaun": 7,
   "Xander Schauffele": 8,
   "Ben Griffin": 9,
