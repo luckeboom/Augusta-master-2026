@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Fantasy Golf – Masters 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDilrlRSWOxxG9_1-Vn79Dogkv3ooJ4udc",
+  authDomain: "augusta-masters-2026.firebaseapp.com",
+  projectId: "augusta-masters-2026",
+  storageBucket: "augusta-masters-2026.firebasestorage.app",
+  messagingSenderId: "246739865782",
+  appId: "1:246739865782:web:0700fc1968f79d89ae5617",
+  measurementId: "G-3XS116MELT"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+/* ═══════════════════════════════════════
+   FIREBASE HELPERS
+═══════════════════════════════════════ */
+async function fbSavePlayer(guess) {
+  const key = guess.playerName.toLowerCase().replace(/\s+/g, '_');
+  await setDoc(doc(db, 'players', key), guess);
+}
+
+async function fbLoadPlayers() {
+  const snap = await getDocs(collection(db, 'players'));
+  return snap.docs.map(d => d.data());
+}
+
+async function fbSaveAdmin(result) {
+  await setDoc(doc(db, 'admin', 'result'), result);
+}
+
+async function fbLoadAdmin() {
+  const snap = await getDoc(doc(db, 'admin', 'result'));
+  return snap.exists() ? snap.data() : { top10: [], lowestRound: null, specialHappened: null };
+}
+
+/* ═══════════════════════════════════════
+   STATE
+═══════════════════════════════════════ */
+const PLAYERS = [
+  "Rory McIlroy","Robert MacIntyre","Tommy Fleetwood","Justin Rose",
+  "Rasmus Højgaard","Tyrrell Hatton","Shane Lowry","Jon Rahm",
+  "Sepp Straka","Viktor Hovland","Ludvig Åberg","Matt Fitzpatrick",
+  "Scottie Scheffler","J.J. Spaun","Xander Schauffele","Russell Henley",
+  "Harris English","Bryson DeChambeau","Justin Thomas","Collin Morikawa",
+  "Ben Griffin","Cameron Young","Patrick Cantlay","Sam Burns"
+];
+
+const WORLD_RANKING = {
+  "Scottie Scheffler":1,"Rory McIlroy":2,"Justin Rose":3,
+  "Tommy Fleetwood":4,"Russell Henley":5,"Robert MacIntyre":6,
+  "J.J. Spaun":7,"Xander Schauffele":8,"Ben Griffin":9,"Justin Thomas":10
+};
+
+let allPlayers  = [];
+let adminResult = { top10: [], lowestRound: null, specialHappened: null };
+let currentGuess = {};
+let selTop3 = [], selSurprise = null, selFlop = null, selLowest = null, selSpecial = null;
+
+/* ═══════════════════════════════════════
+   NAV
+═══════════════════════════════════════ */
+async function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+  const tabs = document.querySelectorAll('.nav-tab');
+  const map  = { game: 0, leaderboard: 1, admin: 2 };
+  tabs[map[id]].classList.add('active');
+  if (id === 'leaderboard') { showLoading('lb-list'); allPlayers = await fbLoadPlayers(); adminResult = await fbLoadAdmin(); renderLeaderboard(); }
+  if (id === 'admin')       { adminResult = await fbLoadAdmin(); renderAdmin(); }
+}
+window.showView = showView;
+
+function showLoading(elId) {
+  const el = document.getElementById(elId);
+  if (el) el.innerHTML = '<p class="text-muted" style="padding:16px">Laddar…</p>';
+}
+
+/* ═══════════════════════════════════════
+   STEPS
+═══════════════════════════════════════ */
+const STEP_LABELS = ['Namn','Topp 3','Överraskning','Flop','Lägsta','Special'];
+function renderSteps(cur) {
+  const el = document.getElementById('step-indicator');
+  el.innerHTML = '';
+  STEP_LABELS.forEach((lbl, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'step-dot' + (i < cur ? ' done' : i === cur ? ' active' : '');
+    dot.title = lbl;
+    dot.textContent = i < cur ? '✓' : i + 1;
+    el.appendChild(dot);
+    if (i < STEP_LABELS.length - 1) {
+      const line = document.createElement('div');
+      line.className = 'step-line' + (i < cur ? ' done' : '');
+      el.appendChild(line);
+    }
+  });
+}
+
+function showStep(step) {
+  const steps = ['name','top3','surprise','flop','lowest','special','summary'];
+  steps.forEach(s => { const el = document.getElementById('step-' + s); if (el) el.style.display = 'none'; });
+  const target = document.getElementById('step-' + steps[step]);
+  if (target) target.style.display = '';
+  renderSteps(step);
+}
+
+/* ═══════════════════════════════════════
+   NAME
+═══════════════════════════════════════ */
+document.getElementById('input-name').addEventListener('keydown', e => { if (e.key === 'Enter') submitName(); });
+
+async function submitName() {
+  const name = document.getElementById('input-name').value.trim();
+  if (!name) { alert('Skriv ditt namn!'); return; }
+  const btn = document.getElementById('btn-name');
+  btn.disabled = true; btn.textContent = 'Kollar…';
+  try {
+    allPlayers = await fbLoadPlayers();
+    if (allPlayers.some(p => p.playerName.toLowerCase() === name.toLowerCase())) {
+      alert(name + ' har redan lämnat in tips! Välj ett annat namn.');
+      btn.disabled = false; btn.textContent = 'Nästa →';
+      return;
+    }
+  } catch(e) {}
+  currentGuess = { playerName: name };
+  document.getElementById('game-sub').textContent = name + ' · Augusta National · April 2026';
+  selTop3 = []; selSurprise = null; selFlop = null; selLowest = null; selSpecial = null;
+  buildTop3Grid();
+  showStep(1);
+  btn.disabled = false; btn.textContent = 'Nästa →';
+}
+window.submitName = submitName;
+
+/* ═══════════════════════════════════════
+   TOP 3
+═══════════════════════════════════════ */
+function buildTop3Grid() {
+  const grid = document.getElementById('grid-top3');
+  grid.innerHTML = '';
+  renderTop3Slots();
+  PLAYERS.forEach((p, i) => {
+    const btn = playerButton(p, i, () => {
+      if (selTop3.includes(p)) selTop3 = selTop3.filter(x => x !== p);
+      else if (selTop3.length < 3) selTop3.push(p);
+      renderTop3Slots(); updateTop3Grid();
+      document.getElementById('btn-top3').disabled = selTop3.length < 3;
+    });
+    grid.appendChild(btn);
+  });
+}
+
+function renderTop3Slots() {
+  const container = document.getElementById('top3-slots');
+  container.innerHTML = '';
+  ['1:a plats','2:a plats','3:e plats'].forEach((label, i) => {
+    const slot = document.createElement('div');
+    slot.className = 'order-slot' + (selTop3[i] ? ' filled' : '');
+    slot.innerHTML = `<div class="slot-label">${label}</div><div class="slot-name">${selTop3[i] || '–'}</div>`;
+    container.appendChild(slot);
+  });
+}
+
+function updateTop3Grid() {
+  document.querySelectorAll('#grid-top3 .player-btn').forEach(btn => {
+    const name = btn.dataset.name;
+    const idx  = selTop3.indexOf(name);
+    btn.className = 'player-btn' + (idx !== -1 ? ' selected' : '') + (selTop3.length >= 3 && idx === -1 ? ' disabled' : '');
+    btn.querySelector('.pnum').textContent = idx !== -1 ? (idx + 1) + '.' : btn.dataset.idx;
+  });
+}
+
+function submitTop3() {
+  if (selTop3.length < 3) return;
+  currentGuess.top3 = [...selTop3];
+  buildPlayerGrid('grid-surprise', p => { selSurprise = p; highlightGrid('grid-surprise', p); document.getElementById('btn-surprise').disabled = false; });
+  showStep(2);
+}
+window.submitTop3 = submitTop3;
+
+/* ═══════════════════════════════════════
+   SURPRISE / FLOP / LOWEST
+═══════════════════════════════════════ */
+function submitSurprise() { if (!selSurprise) return; currentGuess.surprise = selSurprise; buildPlayerGrid('grid-flop', p => { selFlop = p; highlightGrid('grid-flop', p); document.getElementById('btn-flop').disabled = false; }); showStep(3); }
+function submitFlop()     { if (!selFlop) return;     currentGuess.flop = selFlop;         buildPlayerGrid('grid-lowest', p => { selLowest = p; highlightGrid('grid-lowest', p); document.getElementById('btn-lowest').disabled = false; }); showStep(4); }
+function submitLowest()   { if (!selLowest) return;   currentGuess.lowestRound = selLowest; showStep(5); }
+window.submitSurprise = submitSurprise;
+window.submitFlop     = submitFlop;
+window.submitLowest   = submitLowest;
+
+/* ═══════════════════════════════════════
+   SPECIAL
+═══════════════════════════════════════ */
+function selectSpecial(val) {
+  selSpecial = val;
+  document.getElementById('toggle-ja').classList.toggle('active', val === 'ja');
+  document.getElementById('toggle-nej').classList.toggle('active', val === 'nej');
+  document.getElementById('btn-special').disabled = false;
+}
+window.selectSpecial = selectSpecial;
+
+async function submitSpecial() {
+  if (!selSpecial) return;
+  currentGuess.special = selSpecial;
+  currentGuess.score   = null;
+  const btn = document.getElementById('btn-special');
+  btn.disabled = true; btn.textContent = 'Sparar…';
+  try {
+    await fbSavePlayer(currentGuess);
+    allPlayers.push({ ...currentGuess });
+  } catch(e) { alert('Kunde inte spara – kontrollera din internetanslutning.'); btn.disabled = false; btn.textContent = 'Lämna in →'; return; }
+  renderSummary();
+  showStep(6);
+  btn.disabled = false; btn.textContent = 'Lämna in →';
+}
+window.submitSpecial = submitSpecial;
+
+/* ═══════════════════════════════════════
+   SUMMARY
+═══════════════════════════════════════ */
+function renderSummary() {
+  const g  = currentGuess;
+  const el = document.getElementById('summary-content');
+  el.innerHTML = `
+    <div class="breakdown-item"><span>Topp 3</span><span style="color:var(--gold-light)">${g.top3.join(' / ')}</span></div>
+    <div class="breakdown-item"><span>Överraskning</span><span>${g.surprise}</span></div>
+    <div class="breakdown-item"><span>Flop</span><span>${g.flop}</span></div>
+    <div class="breakdown-item"><span>Lägsta runda</span><span>${g.lowestRound}</span></div>
+    <div class="breakdown-item"><span>Hole-in-One/Albatross</span><span>${g.special.toUpperCase()}</span></div>
+    <div class="alert alert-info" style="margin-top:14px">Tips sparade! Poäng beräknas efter turneringen.</div>
+  `;
+}
+
+function newPlayer() {
+  currentGuess = {};
+  document.getElementById('input-name').value = '';
+  document.getElementById('game-sub').textContent = 'Augusta National · April 2026';
+  showStep(0);
+}
+window.newPlayer = newPlayer;
+
+/* ═══════════════════════════════════════
+   GRID HELPERS
+═══════════════════════════════════════ */
+function playerButton(name, idx, onClick) {
+  const btn  = document.createElement('button');
+  btn.className    = 'player-btn';
+  btn.dataset.name = name;
+  btn.dataset.idx  = idx;
+  const rank = WORLD_RANKING[name];
+  btn.innerHTML = `<span class="pnum">${idx}</span><span>${name}</span>${rank ? `<span class="rank-badge">WR${rank}</span>` : ''}`;
+  btn.addEventListener('click', () => onClick(name));
+  return btn;
+}
+
+function buildPlayerGrid(gridId, onClick) {
+  const grid = document.getElementById(gridId);
+  grid.innerHTML = '';
+  PLAYERS.forEach((p, i) => grid.appendChild(playerButton(p, i, onClick)));
+}
+
+function highlightGrid(gridId, selected) {
+  document.querySelectorAll('#' + gridId + ' .player-btn').forEach(btn => btn.classList.toggle('selected', btn.dataset.name === selected));
+}
+
+/* ═══════════════════════════════════════
+   LEADERBOARD
+═══════════════════════════════════════ */
+function renderLeaderboard() {
+  const sorted = [...allPlayers].sort((a, b) => (b.score ?? -999) - (a.score ?? -999));
+  const lb = document.getElementById('lb-list');
+
+  document.getElementById('lb-p1').textContent = sorted[0]?.playerName ?? '–';
+  document.getElementById('lb-p2').textContent = sorted[1]?.playerName ?? '–';
+  document.getElementById('lb-p3').textContent = sorted[2]?.playerName ?? '–';
+
+  if (!sorted.length) { lb.innerHTML = '<p class="text-muted">Inga spelare har lämnat in tips ännu.</p>'; return; }
+
+  lb.innerHTML = '';
+  sorted.forEach((p, i) => {
+    const rc      = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
+    const rankCls = i === 0 ? 'r1'   : i === 1 ? 'r2'   : i === 2 ? 'r3'   : '';
+    const pts     = p.score != null ? p.score + ' p' : '–';
+    const row     = document.createElement('div');
+    row.className = 'lb-row ' + rc;
+    row.innerHTML = `<div class="lb-rank ${rankCls}">${i + 1}</div><div class="lb-name">${p.playerName}</div><div class="lb-pts">${pts}</div>`;
+    lb.appendChild(row);
+  });
+
+  const hint = document.getElementById('result-status');
+  if (adminResult.top10.length < 10) { hint.style.display = ''; hint.textContent = 'Turneringsresultatet har inte matats in ännu – poäng visas när admin räknar.'; }
+  else hint.style.display = 'none';
+}
+
+/* ═══════════════════════════════════════
+   ADMIN
+═══════════════════════════════════════ */
+function renderAdmin() {
+  const grid = document.getElementById('grid-result');
+  grid.innerHTML = '';
+  renderResultSlots();
+  PLAYERS.forEach((p, i) => {
+    const btn = playerButton(p, i, () => {
+      if (adminResult.top10.includes(p)) adminResult.top10 = adminResult.top10.filter(x => x !== p);
+      else if (adminResult.top10.length < 10) adminResult.top10.push(p);
+      renderResultSlots(); updateResultGrid();
+    });
+    grid.appendChild(btn);
+  });
+  if (adminResult.top10.length) updateResultGrid();
+
+  buildPlayerGrid('grid-result-lowest', p => {
+    adminResult.lowestRound = p;
+    document.getElementById('result-lowest-name').textContent = 'Vald: ' + p;
+    highlightGrid('grid-result-lowest', p);
+  });
+  if (adminResult.lowestRound) { highlightGrid('grid-result-lowest', adminResult.lowestRound); document.getElementById('result-lowest-name').textContent = 'Vald: ' + adminResult.lowestRound; }
+  if (adminResult.specialHappened !== null) adminSelectSpecial(adminResult.specialHappened);
+}
+
+function renderResultSlots() {
+  const container = document.getElementById('result-slots');
+  container.innerHTML = '';
+  for (let i = 0; i < 10; i++) {
+    const name = adminResult.top10[i];
+    const slot = document.createElement('div');
+    slot.className = 'order-slot' + (name ? ' filled' : '');
+    slot.style.minWidth = '80px';
+    slot.innerHTML = `<div class="slot-label">Plats ${i + 1}</div><div class="slot-name">${name || '–'}</div>`;
+    container.appendChild(slot);
+  }
+}
+
+function updateResultGrid() {
+  document.querySelectorAll('#grid-result .player-btn').forEach(btn => {
+    const name = btn.dataset.name;
+    const idx  = adminResult.top10.indexOf(name);
+    btn.className = 'player-btn' + (idx !== -1 ? ' selected' : '') + (adminResult.top10.length >= 10 && idx === -1 ? ' disabled' : '');
+    btn.querySelector('.pnum').textContent = idx !== -1 ? (idx + 1) + '.' : btn.dataset.idx;
+  });
+}
+
+function adminSelectSpecial(val) {
+  adminResult.specialHappened = val;
+  document.getElementById('admin-toggle-ja').classList.toggle('active', val === true);
+  document.getElementById('admin-toggle-nej').classList.toggle('active', val === false);
+}
+window.adminSelectSpecial = adminSelectSpecial;
+
+async function calculateAllScores() {
+  if (adminResult.top10.length < 10) { alert('Fyll i alla 10 platser i topp 10!'); return; }
+  if (!adminResult.lowestRound)       { alert('Välj vinnare av lägsta runda!'); return; }
+  if (adminResult.specialHappened === null) { alert('Välj ja/nej för Hole-in-One/Albatross!'); return; }
+
+  const btn = document.getElementById('btn-calc');
+  btn.disabled = true; btn.textContent = 'Räknar…';
+
+  allPlayers = await fbLoadPlayers();
+  allPlayers.forEach(p => { const { score, scoreItems } = calcScore(p); p.score = score; p.scoreItems = scoreItems; });
+
+  try {
+    await fbSaveAdmin(adminResult);
+    for (const p of allPlayers) await fbSavePlayer(p);
+  } catch(e) { alert('Fel vid sparning: ' + e.message); }
+
+  btn.disabled = false; btn.textContent = 'Beräkna alla poäng →';
+  renderAdminResults();
+}
+window.calculateAllScores = calculateAllScores;
+
+/* ═══════════════════════════════════════
+   SCORING
+═══════════════════════════════════════ */
+function getFinishPosition(player) { const i = adminResult.top10.indexOf(player); return i === -1 ? 999 : i + 1; }
+function isFlop(player)     { const r = WORLD_RANKING[player] ?? 999; const f = getFinishPosition(player); return (r <= 5 && f > 5) || (r <= 10 && f > 10); }
+function isSurprise(player) { const r = WORLD_RANKING[player] ?? 999; const f = getFinishPosition(player); return (r > 10 && f <= 5) || (r <= 10 && f === 1); }
+
+function specialScore(guessed, happened) {
+  if (guessed === 'ja'  && happened)  return 10;
+  if (guessed === 'ja'  && !happened) return -4;
+  if (guessed === 'nej' && !happened) return 4;
+  if (guessed === 'nej' && happened)  return -10;
+  return 0;
+}
+
+function calcScore(guess) {
+  let score = 0;
+  const scoreItems = [];
+
+  guess.top3.forEach((p, i) => {
+    if (p === adminResult.top10[i])                         { score += 15; scoreItems.push({ label: p + ' (plats ' + (i+1) + ')',       pts: 15, ok: true  }); }
+    else if (adminResult.top10.slice(0,3).includes(p))      { score +=  5; scoreItems.push({ label: p + ' (rätt topp 3, fel plats)',     pts:  5, ok: true  }); }
+    else                                                    {              scoreItems.push({ label: p + ' (ej topp 3)',                  pts:  0, ok: false }); }
+  });
+
+  if (isFlop(guess.flop))         { score += 10; scoreItems.push({ label: 'Flop: ' + guess.flop,                    pts: 10, ok: true  }); }
+  else                            {              scoreItems.push({ label: 'Flop: ' + guess.flop + ' (inte flop)',    pts:  0, ok: false }); }
+
+  if (isSurprise(guess.surprise)) { score += 10; scoreItems.push({ label: 'Överraskning: ' + guess.surprise,                   pts: 10, ok: true  }); }
+  else                            {              scoreItems.push({ label: 'Överraskning: ' + guess.surprise + ' (inte)',        pts:  0, ok: false }); }
+
+  if (guess.lowestRound === adminResult.lowestRound) { score += 10; scoreItems.push({ label: 'Lägsta runda: ' + guess.lowestRound,        pts: 10, ok: true  }); }
+  else                                               {              scoreItems.push({ label: 'Lägsta runda: ' + guess.lowestRound + ' (fel)', pts: 0, ok: false }); }
+
+  const sp = specialScore(guess.special, adminResult.specialHappened);
+  score += sp;
+  scoreItems.push({ label: 'Hole/Albatross: ' + guess.special.toUpperCase(), pts: sp, ok: sp > 0 });
+
+  return { score, scoreItems };
+}
+
+function renderAdminResults() {
+  const el     = document.getElementById('admin-results');
+  const sorted = [...allPlayers].sort((a, b) => b.score - a.score);
+  el.innerHTML = `<h2 style="font-family:var(--font-display);font-size:1.3rem;color:var(--cream);margin-bottom:20px">Resultat</h2>`;
+
+  sorted.forEach((p, rank) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.marginBottom = '16px';
+    const itemsHtml = (p.scoreItems || []).map(item => {
+      const cls  = item.pts > 0 ? 'pos' : item.pts < 0 ? 'neg' : 'zero';
+      const sign = item.pts > 0 ? '+' : '';
+      return `<div class="breakdown-item"><span style="color:${item.ok ? '#6ecf9a' : 'var(--text-muted)'}">${item.label}</span><span class="pts-badge ${cls}">${sign}${item.pts}</span></div>`;
+    }).join('');
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #ffffff12">
+        <span style="font-family:var(--font-display);font-size:1.1rem;color:var(--cream)">${rank + 1}. ${p.playerName}</span>
+        <span style="font-family:var(--font-mono);font-size:1.3rem;color:var(--gold-light)">${p.score} p</span>
+      </div>${itemsHtml}`;
+    el.appendChild(card);
+  });
+
+  showView('leaderboard');
+}
+
+/* ═══════════════════════════════════════
+   INIT
+═══════════════════════════════════════ */
+showStep(0);
+</script>
+
+<style>
+  :root {
+    --green-deep: #0a3828;
+    --green-soft: #2d9e6e;
+    --gold:       #c9a632;
+    --gold-light: #e8c96a;
+    --cream:      #f5efe0;
+    --text-light: #f0ece0;
+    --text-muted: #a8c4b0;
+    --silver:     #9bb0b8;
+    --bronze:     #c07c44;
+    --radius:     14px;
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-body:    'DM Sans', sans-serif;
+    --font-mono:    'DM Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--green-deep); color: var(--text-light); font-family: var(--font-body); min-height: 100vh;
+    background-image: radial-gradient(ellipse 80% 60% at 50% -10%, #1e7a5222 0%, transparent 70%),
+      repeating-linear-gradient(0deg, transparent, transparent 59px, #ffffff04 60px),
+      repeating-linear-gradient(90deg, transparent, transparent 59px, #ffffff04 60px); }
+
+  nav { display: flex; justify-content: space-between; align-items: center; padding: 18px 32px; border-bottom: 1px solid #ffffff12; position: sticky; top: 0; z-index: 100; background: #0a382888; backdrop-filter: blur(8px); }
+  .nav-brand { font-family: var(--font-display); font-size: 1.1rem; font-style: italic; color: var(--gold-light); }
+  .nav-brand span { font-style: normal; color: var(--text-muted); font-size: 0.8rem; margin-left: 8px; font-family: var(--font-body); }
+  .nav-tabs { display: flex; gap: 4px; }
+  .nav-tab { padding: 7px 18px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--text-muted); font-family: var(--font-body); font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+  .nav-tab.active, .nav-tab:hover { background: #ffffff14; border-color: #ffffff20; color: var(--text-light); }
+  .nav-tab.active { color: var(--gold-light); border-color: #c9a63244; }
+
+  .view { display: none; max-width: 820px; margin: 0 auto; padding: 40px 24px 80px; }
+  .view.active { display: block; }
+  .page-title { font-family: var(--font-display); font-size: 2.4rem; font-weight: 700; color: var(--cream); line-height: 1.15; margin-bottom: 6px; }
+  .page-sub { color: var(--text-muted); font-size: 0.9rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 36px; }
+
+  .podium { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 36px; }
+  .podium-card { border-radius: var(--radius); padding: 20px 16px; text-align: center; }
+  .podium-card .medal { font-size: 1.5rem; margin-bottom: 6px; display: block; }
+  .podium-card .label { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.75; margin-bottom: 8px; display: block; }
+  .podium-card .name { font-family: var(--font-display); font-size: 1rem; font-weight: 700; display: block; }
+  .podium-card.gold   { background: linear-gradient(135deg, #7a5c0f, #c9a632); color: #fffbe8; }
+  .podium-card.silver { background: linear-gradient(135deg, #3a4a52, #9bb0b8); color: #e8f0f4; }
+  .podium-card.bronze { background: linear-gradient(135deg, #5a3010, #c07c44); color: #fde8d0; }
+
+  .card { background: #ffffff09; border: 1px solid #ffffff14; border-radius: var(--radius); padding: 24px; margin-bottom: 20px; }
+  .card h2 { font-family: var(--font-display); font-size: 1.15rem; font-weight: 500; color: var(--cream); margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #ffffff12; }
+
+  .player-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-bottom: 20px; }
+  .player-btn { padding: 10px 14px; border-radius: 10px; border: 1.5px solid #ffffff18; background: #ffffff08; color: var(--text-light); font-family: var(--font-body); font-size: 0.88rem; cursor: pointer; transition: all 0.18s; text-align: left; display: flex; align-items: center; gap: 8px; }
+  .player-btn .pnum { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); min-width: 18px; }
+  .player-btn:hover { background: #ffffff18; border-color: #ffffff30; }
+  .player-btn.selected { background: #1e7a5230; border-color: var(--green-soft); color: var(--gold-light); }
+  .player-btn.disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+  .player-btn .rank-badge { margin-left: auto; font-size: 0.7rem; color: var(--gold); font-family: var(--font-mono); }
+
+  .form-group { margin-bottom: 20px; }
+  .form-label { display: block; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+  input[type="text"] { width: 100%; padding: 11px 14px; border-radius: 10px; border: 1.5px solid #ffffff18; background: #ffffff08; color: var(--text-light); font-family: var(--font-body); font-size: 0.95rem; outline: none; transition: border-color 0.2s; }
+  input[type="text"]:focus { border-color: var(--green-soft); }
+  input[type="text"]::placeholder { color: var(--text-muted); }
+
+  .toggle-group { display: flex; gap: 10px; }
+  .toggle-btn { flex: 1; padding: 11px; border-radius: 10px; border: 1.5px solid #ffffff18; background: #ffffff08; color: var(--text-muted); font-family: var(--font-body); font-size: 0.95rem; cursor: pointer; transition: all 0.18s; }
+  .toggle-btn.active { background: #1e7a5230; border-color: var(--green-soft); color: var(--gold-light); }
+
+  .steps { display: flex; align-items: center; margin-bottom: 28px; overflow-x: auto; }
+  .step-dot { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #ffffff20; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-family: var(--font-mono); color: var(--text-muted); flex-shrink: 0; transition: all 0.3s; }
+  .step-dot.done { background: var(--green-soft); border-color: var(--green-soft); color: white; }
+  .step-dot.active { border-color: var(--gold); color: var(--gold); }
+  .step-line { flex: 1; height: 1px; background: #ffffff14; min-width: 16px; }
+  .step-line.done { background: var(--green-soft); }
+
+  .top3-order { display: flex; gap: 8px; margin-bottom: 12px; }
+  .order-slot { flex: 1; padding: 10px; border-radius: 10px; border: 1.5px dashed #ffffff20; text-align: center; font-size: 0.8rem; color: var(--text-muted); min-height: 60px; display: flex; flex-direction: column; justify-content: center; }
+  .order-slot.filled { border-style: solid; border-color: var(--green-soft); color: var(--gold-light); }
+  .order-slot .slot-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; opacity: 0.6; }
+  .order-slot .slot-name { font-size: 0.85rem; font-weight: 500; }
+
+  .btn { padding: 12px 28px; border-radius: 10px; border: none; font-family: var(--font-body); font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+  .btn-primary { background: var(--gold); color: #1a1000; }
+  .btn-primary:hover { background: var(--gold-light); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-ghost { background: transparent; border: 1.5px solid #ffffff25; color: var(--text-muted); }
+  .btn-ghost:hover { border-color: #ffffff40; color: var(--text-light); }
+
+  .lb-row { display: grid; grid-template-columns: 36px 1fr auto; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 10px; margin-bottom: 6px; background: #ffffff07; border: 1px solid transparent; }
+  .lb-row.top1 { border-color: #c9a63244; background: #c9a63210; }
+  .lb-row.top2 { border-color: #9bb0b833; }
+  .lb-row.top3 { border-color: #c07c4433; }
+  .lb-rank { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted); text-align: center; }
+  .lb-rank.r1 { color: var(--gold); font-weight: 500; }
+  .lb-rank.r2 { color: var(--silver); }
+  .lb-rank.r3 { color: var(--bronze); }
+  .lb-name { font-size: 0.95rem; font-weight: 500; }
+  .lb-pts { font-family: var(--font-mono); font-size: 1rem; color: var(--gold-light); font-weight: 500; }
+
+  .admin-section { border: 1px solid #c9a63230; background: #c9a63208; border-radius: var(--radius); padding: 24px; margin-bottom: 20px; }
+  .admin-section h3 { font-family: var(--font-display); font-size: 1rem; color: var(--gold-light); margin-bottom: 16px; }
+
+  .breakdown-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #ffffff0a; font-size: 0.88rem; }
+  .breakdown-item:last-child { border-bottom: none; }
+  .pts-badge { font-family: var(--font-mono); font-size: 0.8rem; padding: 2px 8px; border-radius: 6px; }
+  .pts-badge.pos { background: #1e7a5230; color: #6ecf9a; }
+  .pts-badge.neg { background: #7a1e1e30; color: #e07070; }
+  .pts-badge.zero { color: var(--text-muted); }
+
+  .alert { padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 14px; }
+  .alert-warn { background: #c9a63218; border: 1px solid #c9a63240; color: var(--gold-light); }
+  .alert-info { background: #1e7a5218; border: 1px solid #2d9e6e40; color: #6ecf9a; }
+
+  .divider { height: 1px; background: #ffffff10; margin: 24px 0; }
+  .flex-row { display: flex; gap: 12px; align-items: center; }
+  .mt-16 { margin-top: 16px; }
+  .text-muted { color: var(--text-muted); font-size: 0.85rem; }
+
+  @media (max-width: 600px) {
+    .podium { grid-template-columns: 1fr; }
+    nav { padding: 14px 16px; }
+    .view { padding: 24px 16px 60px; }
+    .page-title { font-size: 1.8rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">Fantasy Golf <span>Masters · Augusta 2026</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showView('game')">Spel</button>
+    <button class="nav-tab" onclick="showView('leaderboard')">Leaderboard</button>
+    <button class="nav-tab" onclick="showView('admin')">Admin</button>
+  </div>
+</nav>
+
+<!-- GAME VIEW -->
+<div id="view-game" class="view active">
+  <h1 class="page-title">Dina tips</h1>
+  <p class="page-sub" id="game-sub">Augusta National · April 2026</p>
+  <div class="steps" id="step-indicator"></div>
+
+  <div id="step-name" class="card">
+    <h2>Vem är du?</h2>
+    <div class="form-group">
+      <label class="form-label">Ditt namn</label>
+      <input type="text" id="input-name" placeholder="Skriv ditt namn…" maxlength="30"/>
+    </div>
+    <button class="btn btn-primary" id="btn-name" onclick="submitName()">Nästa →</button>
+  </div>
+
+  <div id="step-top3" class="card" style="display:none">
+    <h2>Topp 3 – i rätt ordning</h2>
+    <p class="text-muted" style="margin-bottom:16px">Välj 1:a, 2:a och 3:e plats. Rätt plats = 15 p · Rätt topp 3 men fel plats = 5 p</p>
+    <div class="top3-order" id="top3-slots"></div>
+    <div class="player-grid" id="grid-top3"></div>
+    <button class="btn btn-primary" id="btn-top3" onclick="submitTop3()" disabled>Bekräfta Topp 3 →</button>
+  </div>
+
+  <div id="step-surprise" class="card" style="display:none">
+    <h2>Årets överraskning</h2>
+    <p class="text-muted" style="margin-bottom:16px">Spelare utanför topp 10 som toppar, eller topp 10-spelare som vinner. (+10 p)</p>
+    <div class="player-grid" id="grid-surprise"></div>
+    <button class="btn btn-primary" id="btn-surprise" onclick="submitSurprise()" disabled>Nästa →</button>
+  </div>
+
+  <div id="step-flop" class="card" style="display:none">
+    <h2>Årets flop</h2>
+    <p class="text-muted" style="margin-bottom:16px">Topp 5-spelare som missar topp 5, eller topp 10-spelare som missar topp 10. (+10 p)</p>
+    <div class="player-grid" id="grid-flop"></div>
+    <button class="btn btn-primary" id="btn-flop" onclick="submitFlop()" disabled>Nästa →</button>
+  </div>
+
+  <div id="step-lowest" class="card" style="display:none">
+    <h2>Lägsta runda</h2>
+    <p class="text-muted" style="margin-bottom:16px">Vem spelar den lägsta enskilda rundan i turneringen? (+10 p)</p>
+    <div class="player-grid" id="grid-lowest"></div>
+    <button class="btn btn-primary" id="btn-lowest" onclick="submitLowest()" disabled>Nästa →</button>
+  </div>
+
+  <div id="step-special" class="card" style="display:none">
+    <h2>Hole-in-One eller Albatross</h2>
+    <p class="text-muted" style="margin-bottom:16px">Händer det under Masters 2026?<br>Rätt ja = +10 p · Rätt nej = +4 p · Fel ja = −4 p · Fel nej = −10 p</p>
+    <div class="toggle-group">
+      <button class="toggle-btn" id="toggle-ja" onclick="selectSpecial('ja')">Ja – det händer!</button>
+      <button class="toggle-btn" id="toggle-nej" onclick="selectSpecial('nej')">Nej – inte en chans</button>
+    </div>
+    <button class="btn btn-primary mt-16" id="btn-special" onclick="submitSpecial()" disabled>Lämna in →</button>
+  </div>
+
+  <div id="step-summary" class="card" style="display:none">
+    <h2>Dina val är inlämnade! 🏌️</h2>
+    <div id="summary-content"></div>
+    <div class="divider"></div>
+    <div class="flex-row">
+      <button class="btn btn-ghost" onclick="newPlayer()">+ Ny spelare</button>
+      <button class="btn btn-ghost" onclick="showView('leaderboard')">Se leaderboard →</button>
+    </div>
+  </div>
+</div>
+
+<!-- LEADERBOARD VIEW -->
+<div id="view-leaderboard" class="view">
+  <h1 class="page-title">Leaderboard</h1>
+  <p class="page-sub">Totala poäng · Masters 2026</p>
+  <div class="podium">
+    <div class="podium-card gold"><span class="medal">🥇</span><span class="label">1:a plats</span><strong class="name" id="lb-p1">–</strong></div>
+    <div class="podium-card silver"><span class="medal">🥈</span><span class="label">2:a plats</span><strong class="name" id="lb-p2">–</strong></div>
+    <div class="podium-card bronze"><span class="medal">🥉</span><span class="label">3:e plats</span><strong class="name" id="lb-p3">–</strong></div>
+  </div>
+  <div class="card">
+    <h2>Alla deltagare</h2>
+    <div id="lb-list"><p class="text-muted">Laddar…</p></div>
+    <div id="result-status" class="alert alert-warn" style="display:none;margin-top:14px"></div>
+  </div>
+</div>
+
+<!-- ADMIN VIEW -->
+<div id="view-admin" class="view">
+  <h1 class="page-title">Admin</h1>
+  <p class="page-sub">Mata in turneringsresultat</p>
+  <div class="admin-section">
+    <h3>Topp 10 – slutresultat</h3>
+    <div class="top3-order" id="result-slots" style="flex-wrap:wrap;gap:6px"></div>
+    <div class="player-grid" id="grid-result" style="margin-top:16px"></div>
+  </div>
+  <div class="admin-section">
+    <h3>Lägsta runda</h3>
+    <div class="player-grid" id="grid-result-lowest"></div>
+    <p class="text-muted mt-16" id="result-lowest-name">Ingen vald</p>
+  </div>
+  <div class="admin-section">
+    <h3>Hole-in-One / Albatross</h3>
+    <div class="toggle-group">
+      <button class="toggle-btn" id="admin-toggle-ja" onclick="adminSelectSpecial(true)">Ja – hände</button>
+      <button class="toggle-btn" id="admin-toggle-nej" onclick="adminSelectSpecial(false)">Nej – hände inte</button>
+    </div>
+  </div>
+  <button class="btn btn-primary" id="btn-calc" onclick="calculateAllScores()" style="width:100%">Beräkna alla poäng →</button>
+  <div id="admin-results" style="margin-top:28px"></div>
+</div>
+
+</body>
+</html>
